@@ -99,13 +99,33 @@ namespace Microsoft.PowerBI.Commands.Workspaces.Test
         private static ICollection<PSObject> InvokeGetPowerBIWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope)
         {
             ps.Commands.Clear();
-            ps.AddCommand(GetPowerBIWorkspaceCmdletInfo).AddParameter(nameof(GetPowerBIWorkspace.Scope), scope.ToString());
-
-            var results = ps.Invoke();
-
+            var allResults = new List<PSObject>();
+            var First = 5000;
+            var Skip = 0;
+            while (true)
+            {
+                var parameters = new Dictionary<string, object>()
+                    {
+                        { nameof(GetPowerBIWorkspace.Scope), scope.ToString() },
+                        { nameof(GetPowerBIWorkspace.First), First },
+                        { nameof(GetPowerBIWorkspace.Skip), Skip }
+                    };
+                ps.AddCommand(GetPowerBIWorkspaceCmdletInfo).AddParameters(parameters);
+                var results = ps.Invoke();
+                if (results != null)
+                {
+                    allResults.AddRange(results);
+                }
+                if (results.Count < First)
+                {
+                    break;
+                }
+                Skip += First;
+            }
+            
             TestUtilities.AssertNoCmdletErrors(ps);
             ps.Commands.Clear();
-            return results;
+            return allResults;
         }
     }
 }
