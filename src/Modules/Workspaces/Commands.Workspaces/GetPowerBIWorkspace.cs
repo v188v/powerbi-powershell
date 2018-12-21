@@ -142,16 +142,16 @@ namespace Microsoft.PowerBI.Commands.Workspaces
             {
                 var top = 5000;
                 var skip = 0;
-                var workspacesCountBeforeApiCall = 0;
-                var workspacesCountAfterApiCall = 0; 
+                var workspacesCountBeforeApiCall = 0L;
+                var workspacesCountAfterApiCall = 0L; 
                 while (true)
                 {
                     var result = client.Workspaces.GetWorkspacesAsAdmin(expand: "users", filter: this.Filter, top: top, skip: skip);
-                    workspacesCountBeforeApiCall = workspacesCountAfterApiCall;
                     if (result != null)
                     {
                         allWorkspaces.AddRange(result);
                     }
+                    workspacesCountBeforeApiCall = workspacesCountAfterApiCall;
                     workspacesCountAfterApiCall = allWorkspaces.Count;
                     if ((workspacesCountAfterApiCall - workspacesCountBeforeApiCall) < top)
                     {

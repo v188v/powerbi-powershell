@@ -98,12 +98,12 @@ namespace Microsoft.PowerBI.Commands.Workspaces.Test
 
         private static ICollection<PSObject> InvokeGetPowerBIWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope)
         {
-            ps.Commands.Clear();
             var allResults = new List<PSObject>();
             var First = 5000;
             var Skip = 0;
             while (true)
             {
+                ps.Commands.Clear();
                 var parameters = new Dictionary<string, object>()
                     {
                         { nameof(GetPowerBIWorkspace.Scope), scope.ToString() },
