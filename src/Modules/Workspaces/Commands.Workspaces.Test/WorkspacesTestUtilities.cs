@@ -36,69 +36,33 @@ namespace Microsoft.PowerBI.Commands.Workspaces.Test
 
         public static Workspace GetWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope, Guid id)
         {
-            var results = InvokeGetPowerBIWorkspace(ps, scope);
-            if (results.Any())
-            {
-                var workspaces = results.Select(x => (Workspace)x.BaseObject);
-                return workspaces.First(x => x.Id == id);
-            }
-
-            return null;
+            return InvokeGetPowerBIWorkspace(ps, scope, OperationType.GetWorkspaceById, id);
         }
 
         public static Workspace GetFirstWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope)
         {
-            var results = InvokeGetPowerBIWorkspace(ps, scope);
-            if (results.Any())
-            {
-                var workspaces = results.Select(x => (Workspace)x.BaseObject);
-                return workspaces.First();
-            }
-
-            return null;
+            return InvokeGetPowerBIWorkspace(ps, scope, OperationType.GetFirstWorkspace);
         }
 
         // TODO: Until the non-admin endpoint exposes type, this can only call the cmdlet with Organization scope
         public static Workspace GetFirstWorkspaceInOrganization(System.Management.Automation.PowerShell ps)
         {
-            var results = InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization);
-            if (results.Any())
-            {
-                var workspaces = results.Select(x => (Workspace)x.BaseObject);
-                return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace);
-            }
-
-            return null;
+            return InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization, OperationType.GetFirstWorkspaceInOrganization);
         }
 
         // TODO: Until the non-admin endpoint supports users, this can only call the cmdlet with Organization scope
         public static Workspace GetFirstWorkspaceWithUsersInOrganization(System.Management.Automation.PowerShell ps)
         {
-            var results = InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization);
-            if (results.Any())
-            {
-                var workspaces = results.Select(x => (Workspace)x.BaseObject);
-                return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace && x.Users.Any());
-            }
-
-            return null;
+            return InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization, OperationType.GetFirstWorkspaceWithAUserInOrganization);
         }
 
         public static Workspace GetFirstDeletedWorkspaceInOrganization(System.Management.Automation.PowerShell ps)
         {
-            var results = InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization);
-            if (results.Any())
-            {
-                var workspaces = results.Select(x => (Workspace)x.BaseObject);
-                return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace && x.State == WorkspaceState.Deleted);
-            }
-
-            return null;
+            return InvokeGetPowerBIWorkspace(ps, PowerBIUserScope.Organization, OperationType.GetFirstDeletedWorkspaceInOrganization);
         }
 
-        private static ICollection<PSObject> InvokeGetPowerBIWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope)
+        private static Workspace InvokeGetPowerBIWorkspace(System.Management.Automation.PowerShell ps, PowerBIUserScope scope, OperationType type, Guid? id = null)
         {
-            var allResults = new List<PSObject>();
             var First = 5000;
             var Skip = 0;
             while (true)
@@ -112,9 +76,14 @@ namespace Microsoft.PowerBI.Commands.Workspaces.Test
                     };
                 ps.AddCommand(GetPowerBIWorkspaceCmdletInfo).AddParameters(parameters);
                 var results = ps.Invoke();
-                if (results != null)
+                if (results.Any())
                 {
-                    allResults.AddRange(results);
+                    var workspace = CheckResults(results, type, id);
+                    if (workspace != null)
+                    {
+                        ps.Commands.Clear();
+                        return workspace;
+                    }
                 }
                 if (results.Count < First)
                 {
@@ -125,7 +94,46 @@ namespace Microsoft.PowerBI.Commands.Workspaces.Test
             
             TestUtilities.AssertNoCmdletErrors(ps);
             ps.Commands.Clear();
-            return allResults;
+            return null;
         }
+
+        private static Workspace CheckResults(ICollection<PSObject> results, OperationType type, Guid? id = null)
+        {
+            var workspaces = Enumerable.Empty<Workspace>();
+            switch (type)
+            {
+                case OperationType.GetWorkspaceById:
+                    workspaces = results.Select(x => (Workspace)x.BaseObject);
+                    return workspaces.First(x => x.Id == id);
+
+                case OperationType.GetFirstWorkspace:
+                    workspaces = results.Select(x => (Workspace)x.BaseObject);
+                    return workspaces.First();
+
+                case OperationType.GetFirstWorkspaceInOrganization:
+                    workspaces = results.Select(x => (Workspace)x.BaseObject);
+                    return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace);
+
+                case OperationType.GetFirstWorkspaceWithAUserInOrganization:
+                    workspaces = results.Select(x => (Workspace)x.BaseObject);
+                    return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace && x.Users.Any());
+
+                case OperationType.GetFirstDeletedWorkspaceInOrganization:
+                    workspaces = results.Select(x => (Workspace)x.BaseObject);
+                    return workspaces.FirstOrDefault(x => x.Type == WorkspaceType.Workspace && x.State == WorkspaceState.Deleted);
+
+                default:
+                    return null;
+            }
+        }
+    }
+
+    enum OperationType
+    {
+        GetWorkspaceById,
+        GetFirstWorkspace,
+        GetFirstWorkspaceInOrganization,
+        GetFirstWorkspaceWithAUserInOrganization,
+        GetFirstDeletedWorkspaceInOrganization
     }
 }
